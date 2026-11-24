@@ -1,0 +1,84 @@
+name: deploy-server-operations-lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: "Deploy this SRE lab to the configured Docker server"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-operations-lab-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirm_deploy == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SRE_SERVER_HOST: ${{ secrets.SRE_SERVER_HOST }}
+      SRE_SERVER_USER: ${{ secrets.SRE_SERVER_USER }}
+      SRE_SERVER_SSH_PRIVATE_KEY: ${{ secrets.SRE_SERVER_SSH_PRIVATE_KEY }}
+      SRE_SERVER_KNOWN_HOSTS: ${{ secrets.SRE_SERVER_KNOWN_HOSTS }}
+      SRE_SERVER_DEPLOY_PATH: ${{ vars.SRE_SERVER_DEPLOY_PATH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for key in SRE_SERVER_HOST SRE_SERVER_USER SRE_SERVER_SSH_PRIVATE_KEY SRE_SERVER_KNOWN_HOSTS; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "Missing required repository secret: $key" >&2
+              exit 1
+            fi
+          done
+          DEPLOY_PATH="${SRE_SERVER_DEPLOY_PATH:-/opt/server-operations-lab}"
+          case "$DEPLOY_PATH" in
+            /opt/server-operations-lab|/srv/server-operations-lab) ;;
+            *) echo "SRE_SERVER_DEPLOY_PATH must be /opt/server-operations-lab or /srv/server-operations-lab" >&2; exit 1 ;;
+          esac
+          echo "DEPLOY_PATH=$DEPLOY_PATH" >> "$GITHUB_ENV"
+
+      - name: Configure SSH and verify target
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SRE_SERVER_SSH_PRIVATE_KEY" > "$HOME/.ssh/sre_deploy_key"
+          printf '%s\n' "$SRE_SERVER_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/sre_deploy_key" "$HOME/.ssh/known_hosts"
+          SSH=(ssh -i "$HOME/.ssh/sre_deploy_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o ConnectTimeout=10)
+          "${SSH[@]}" "$SRE_SERVER_USER@$SRE_SERVER_HOST" "test -d '$DEPLOY_PATH' && test -w '$DEPLOY_PATH' && test -f '$DEPLOY_PATH/.env' && command -v docker >/dev/null && docker compose version"
+
+      - name: Copy application files (preserve server .env and backups)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          RSYNC_RSH="ssh -i $HOME/.ssh/sre_deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ConnectTimeout=10"
+          export RSYNC_RSH
+          rsync -az \
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='backups/' \
+            ./ "$SRE_SERVER_USER@$SRE_SERVER_HOST:$DEPLOY_PATH/"
+
+      - name: Validate and deploy Docker Compose stack
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ssh -i "$HOME/.ssh/sre_deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$SRE_SERVER_USER@$SRE_SERVER_HOST" \
+            "cd '$DEPLOY_PATH' && docker compose config --quiet && docker compose up -d --build --remove-orphans && docker compose ps"
