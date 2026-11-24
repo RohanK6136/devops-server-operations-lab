@@ -1,0 +1,56 @@
+groups:
+  - name: server-operations
+    rules:
+      - alert: ScrapeTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Monitoring target is down: {{ $labels.job }} / {{ $labels.instance }}"
+          description: "Prometheus has been unable to scrape this target for at least two minutes. Check the service, container health and recent logs."
+
+      - alert: PublicProbeFailed
+        expr: probe_success == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP health probe failed: {{ $labels.instance }}"
+          description: "The configured HTTP endpoint did not return a successful response. Verify DNS, TLS, reverse proxy and application health."
+
+      - alert: HostCpuPressure
+        expr: (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host CPU utilisation is above 80%"
+          description: "CPU has remained above 80% for ten minutes. Identify the busiest processes and correlate with traffic."
+
+      - alert: HostMemoryPressure
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory utilisation is above 85%"
+          description: "Available memory is low. Check container working sets, memory limits, swapping and OOM events."
+
+      - alert: HostDiskPressure
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint!~"/var/lib/docker/.+"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint!~"/var/lib/docker/.+"}) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host filesystem usage is above 85%"
+          description: "Disk utilisation is high. Check logs, images, database growth and backup retention before deleting anything."
+
+      - alert: PostgresExporterCannotConnect
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL exporter cannot query the database"
+          description: "Check PostgreSQL health, credentials, connection limits and exporter logs."

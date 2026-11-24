@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevOps Operations Lab</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1220; --panel:#121d30; --muted:#9aabc3; --line:#26364f; --accent:#62d6b5; }
+    * { box-sizing:border-box }
+    body { margin:0; background:var(--bg); color:#edf4ff; font:15px/1.5 system-ui, sans-serif; }
+    main { max-width:1050px; margin:auto; padding:36px 22px 60px; }
+    header { display:flex; justify-content:space-between; gap:20px; align-items:center; flex-wrap:wrap; margin-bottom:28px; }
+    h1 { margin:0; font-size:clamp(27px,4vw,40px); letter-spacing:-1px; }
+    h2 { margin:0 0 14px; font-size:18px; }
+    p { color:var(--muted); }
+    .tag { border:1px solid #276b5c; color:var(--accent); border-radius:30px; padding:6px 12px; font-size:12px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; }
+    .value { font-size:24px; font-weight:700; margin-top:8px; }
+    .muted { color:var(--muted); font-size:13px; }
+    .status { display:inline-block; width:9px; height:9px; border-radius:50%; background:#e3a84b; margin-right:8px; }
+    .status.ok { background:var(--accent); }
+    button { background:#1b806d; color:white; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+    pre { overflow:auto; background:#080e19; padding:14px; border-radius:9px; color:#c6d7ee; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+    footer { margin-top:22px; color:var(--muted); font-size:12px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <div class="muted">HANDS-ON LEARNING PROJECT · 2026</div>
+      <h1>DevOps Operations Lab</h1>
+      <p>Application health, service visibility and operational troubleshooting.</p>
+    </div>
+    <span class="tag">LOCAL DEMO ENVIRONMENT</span>
+  </header>
+
+  <section class="grid">
+    <article class="card">
+      <div class="muted">WEB / NGINX</div>
+      <div class="value"><span class="status ok"></span>Online</div>
+      <div class="muted">Serving this dashboard on port 8080</div>
+    </article>
+    <article class="card">
+      <div class="muted">API SERVICE</div>
+      <div class="value" id="api-status"><span class="status"></span>Checking</div>
+      <div class="muted" id="api-detail">Waiting for health check</div>
+    </article>
+    <article class="card">
+      <div class="muted">DEPLOYMENT MODEL</div>
+      <div class="value">Docker</div>
+      <div class="muted">Two containers · private bridge network</div>
+    </article>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>Service health</h2>
+    <p>Check the API through the Nginx reverse proxy. Refresh after restarting a service.</p>
+    <div class="actions">
+      <button onclick="checkHealth()">Run health check</button>
+      <button onclick="loadInfo()">Inspect runtime info</button>
+    </div>
+    <pre id="output">No checks run yet.</pre>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>What to demonstrate</h2>
+    <ol>
+      <li>Show the running containers with <code>docker compose ps</code>.</li>
+      <li>Show API and Nginx logs with <code>docker compose logs</code>.</li>
+      <li>Stop the API and observe the failed health check.</li>
+      <li>Restart the API and verify recovery.</li>
+      <li>Explain why only Nginx publishes a host port.</li>
+    </ol>
+  </section>
+  <footer>Learning lab only. Do not use this sample as a public production deployment.</footer>
+</main>
+<script>
+async function checkHealth() {
+  const status = document.getElementById('api-status');
+  const detail = document.getElementById('api-detail');
+  const output = document.getElementById('output');
+  status.innerHTML = '<span class="status"></span>Checking';
+  try {
+    const response = await fetch('/api/health', {cache:'no-store'});
+    const data = await response.json();
+    output.textContent = JSON.stringify({httpStatus:response.status, ...data}, null, 2);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    status.innerHTML = '<span class="status ok"></span>Healthy';
+    detail.textContent = `Checked ${new Date(data.checkedAt).toLocaleTimeString()}`;
+  } catch (error) {
+    status.innerHTML = '<span class="status"></span>Unavailable';
+    detail.textContent = error.message;
+    output.textContent = `Health check failed: ${error.message}`;
+  }
+}
+async function loadInfo() {
+  const output = document.getElementById('output');
+  try {
+    const response = await fetch('/api/info', {cache:'no-store'});
+    const data = await response.json();
+    output.textContent = JSON.stringify(data, null, 2);
+  } catch (error) {
+    output.textContent = `Could not load runtime info: ${error.message}`;
+  }
+}
+checkHealth();
+</script>
+</body>
+</html>

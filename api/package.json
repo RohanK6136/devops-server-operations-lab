@@ -1,0 +1,11 @@
+{
+  "name": "devops-operations-lab-api",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Small observable API used to demonstrate SRE and server operations",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=20" }
+}

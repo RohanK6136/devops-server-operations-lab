@@ -1,0 +1,29 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {"type":"stat","title":"Host CPU usage","gridPos":{"h":5,"w":6,"x":0,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * 100","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent","thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"orange","value":70},{"color":"red","value":85}] }},"overrides":[]}},
+    {"type":"stat","title":"Host memory used","gridPos":{"h":5,"w":6,"x":6,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent","thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"orange","value":75},{"color":"red","value":85}] }},"overrides":[]}},
+    {"type":"stat","title":"Filesystem used","gridPos":{"h":5,"w":6,"x":12,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"(1 - min(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\"})) * 100","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent","thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"orange","value":80},{"color":"red","value":90}] }},"overrides":[]}},
+    {"type":"stat","title":"Targets up","gridPos":{"h":5,"w":6,"x":18,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum(up)","refId":"A"}],"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]}},
+    {"type":"timeseries","title":"CPU usage over time","gridPos":{"h":8,"w":12,"x":0,"y":5},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * 100","legendFormat":"CPU %","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent"},"overrides":[]}},
+    {"type":"timeseries","title":"Memory used over time","gridPos":{"h":8,"w":12,"x":12,"y":5},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100","legendFormat":"Memory %","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent"},"overrides":[]}},
+    {"type":"timeseries","title":"Container CPU by name","gridPos":{"h":8,"w":12,"x":0,"y":13},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by(name) (rate(container_cpu_usage_seconds_total{ image!=\"\"}[5m])) * 100","legendFormat":"{{name}}","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent"},"overrides":[]}},
+    {"type":"timeseries","title":"Container memory working set","gridPos":{"h":8,"w":12,"x":12,"y":13},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by(name) (container_memory_working_set_bytes{image!=\"\"})","legendFormat":"{{name}}","refId":"A"}],"fieldConfig":{"defaults":{"unit":"bytes"},"overrides":[]}},
+    {"type":"table","title":"HTTP probe status","gridPos":{"h":8,"w":24,"x":0,"y":21},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"probe_success","format":"table","instant":true,"refId":"A"}],"fieldConfig":{"defaults":{"custom":{"align":"auto","displayMode":"auto"}},"overrides":[]}}
+  ],
+  "refresh":"30s",
+  "schemaVersion":41,
+  "tags":["sre","operations"],
+  "templating":{"list":[]},
+  "time":{"from":"now-1h","to":"now"},
+  "timepicker":{},
+  "timezone":"browser",
+  "title":"Server Operations Overview",
+  "uid":"server-ops-overview",
+  "version":1
+}

@@ -1,0 +1,2 @@
+app_id,application_name,environment,public_url,technical_owner,business_owner,repository,commit_or_release,runtime,compose_project,proxy_route,health_check_url,data_store,backup_policy,criticality,slo_target,alert_route,runbook,last_reviewed_utc
+APP-0001,Example only,staging,https://example.invalid,team@example.invalid,owner@example.invalid,https://github.com/org/repo,main@commit,Node 22,example-app,example.invalid,/health,PostgreSQL,Daily + restore test,medium,Not agreed,Not configured,docs/INCIDENT-RUNBOOK.md,

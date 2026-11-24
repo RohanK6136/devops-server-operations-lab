@@ -1,0 +1,210 @@
+name: server-operations-lab
+
+services:
+  api:
+    build:
+      context: ./api
+    environment:
+      PORT: "3000"
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: "5432"
+    expose:
+      - "3000"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 4s
+      retries: 3
+      start_period: 10s
+    mem_limit: 128m
+    cpus: 0.25
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [app, data]
+
+  web:
+    build:
+      context: ./web
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/health"]
+      interval: 15s
+      timeout: 4s
+      retries: 3
+    mem_limit: 64m
+    cpus: 0.10
+    logging: *default-logging
+    networks: [app]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env and set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.35
+    logging: *default-logging
+    networks: [data]
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose: ["9187"]
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: 0.10
+    logging: *default-logging
+    networks: [data, monitoring]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./monitoring/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - blackbox-exporter
+      - node-exporter
+      - cadvisor
+      - postgres-exporter
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 0.50
+    logging: *default-logging
+    networks: [monitoring, app]
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-opsadmin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: 0.35
+    logging: *default-logging
+    networks: [monitoring]
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro,rslave
+    expose: ["9100"]
+    restart: unless-stopped
+    pid: host
+    mem_limit: 64m
+    cpus: 0.10
+    logging: *default-logging
+    networks: [monitoring]
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=15s
+    expose: ["8080"]
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.15
+    logging: *default-logging
+    networks: [monitoring]
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.27.0
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    volumes:
+      - ./monitoring/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    expose: ["9115"]
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: 0.10
+    logging: *default-logging
+    networks: [monitoring, app]
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    volumes:
+      - uptime_data:/app/data
+    ports:
+      - "127.0.0.1:3001:3001"
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.20
+    logging: *default-logging
+    networks: [monitoring]
+
+volumes:
+  uptime_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  app:
+    driver: bridge
+  data:
+    internal: true
+  monitoring:
+    driver: bridge
