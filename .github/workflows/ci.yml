@@ -53,6 +53,14 @@ jobs:
           node --check /tmp/devops-lab-web.js
       - name: Run end-to-end routing, outage, recovery and database restore test
         run: bash ./ops/smoke-test.sh
+      - name: Upload operational test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devops-lab-validation-evidence
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
 
   validate-windows-scripts:
     runs-on: windows-latest
