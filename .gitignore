@@ -3,3 +3,5 @@ backups/*
 !backups/.gitkeep
 *.log
 .DS_Store
+evidence/*
+!evidence/.gitkeep
