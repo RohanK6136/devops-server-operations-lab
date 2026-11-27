@@ -69,7 +69,6 @@ jobs:
             }
             Write-Host "Parsed successfully: $file"
           }
-          }
       - name: Execute credential bootstrap without logging secrets
         shell: powershell
         run: |
