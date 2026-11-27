@@ -19,6 +19,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install API dependencies
+        working-directory: api
+        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
       - name: Test API
         working-directory: api
         run: npm test
