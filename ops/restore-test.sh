@@ -46,5 +46,22 @@ cat "$BACKUP_FILE" | docker compose exec -T postgres pg_restore \
   --no-owner --no-acl --exit-on-error
 
 TABLE_COUNT="$(docker compose exec -T postgres psql -At --username "$POSTGRES_USER" --dbname "$RESTORE_DB" -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" | tr -d '\r')"
-printf 'Restore verification passed. Temporary database: %s; public tables restored: %s\n' "$RESTORE_DB" "$TABLE_COUNT"
+
+if [[ "$TABLE_COUNT" -lt 1 ]]; then
+  echo "ERROR: restore completed but no public tables were restored." >&2
+  exit 1
+fi
+
+EVENT_TABLE_COUNT="$(docker compose exec -T postgres psql -At --username "$POSTGRES_USER" --dbname "$RESTORE_DB" -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='lab_events' AND table_type='BASE TABLE';" | tr -d '\r')"
+if [[ "$EVENT_TABLE_COUNT" -ne 1 ]]; then
+  echo "ERROR: lab_events table was not restored." >&2
+  exit 1
+fi
+
+EVENT_ROW_COUNT="$(docker compose exec -T postgres psql -At --username "$POSTGRES_USER" --dbname "$RESTORE_DB" -c "SELECT count(*) FROM public.lab_events;" | tr -d '\r')"
+if [[ "$EVENT_ROW_COUNT" -lt 1 ]]; then
+  echo "ERROR: no operational event rows were restored. Create a sample event before running the restore test." >&2
+  exit 1
+fi
+printf 'Restore verification passed. Temporary database: %s; public tables restored: %s; lab event rows restored: %s\n' "$RESTORE_DB" "$TABLE_COUNT" "$EVENT_ROW_COUNT"
 printf 'The temporary verification database will now be dropped. The source database was not modified.\n'
