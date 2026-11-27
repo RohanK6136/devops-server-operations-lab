@@ -74,7 +74,8 @@ jobs:
             "ops/windows-preflight.ps1",
             "ops/windows-lab.ps1",
             "ops/windows-setup.ps1",
-            "ops/windows-incident-demo.ps1"
+            "ops/windows-incident-demo.ps1",
+            "ops/windows-ssh-lab.ps1"
           )
           foreach ($file in $files) {
             $tokens = $null
