@@ -1,5 +1,21 @@
 # Multi-application uptime and alert setup
 
+## Alertmanager + Mailpit — end-to-end notification demonstration
+
+The monitoring profile includes Alertmanager and Mailpit. Prometheus sends firing and resolved rule notifications to Alertmanager; Alertmanager sends SMTP to Mailpit's local capture inbox. Mailpit does not relay messages to the internet.
+
+1. Start the monitoring profile after the core stack is healthy:
+
+       docker compose --profile monitoring up -d
+
+2. Open Prometheus at http://127.0.0.1:9090, Alertmanager at http://127.0.0.1:9093, and the captured email inbox at http://127.0.0.1:8025.
+3. In Prometheus, open **Alerts** and **Targets**. Confirm Alertmanager is healthy and the blackbox probes are up.
+4. Run the controlled API outage demonstration. The `PublicProbeFailed` rule fires after its one-minute pending period, and Alertmanager sends an email to `ops-team@devops-lab.local` inside Mailpit.
+5. Restart the API. The alert resolves and a recovery email is captured in Mailpit.
+6. Open the Mailpit inbox to show the firing and resolved messages. No real email account or external SMTP credential is used.
+
+The Alertmanager SMTP configuration deliberately disables TLS only because it talks to the local Mailpit sink on the private Compose network. Do not point this setting at a real SMTP service. For a real team notification route, configure a company-approved authenticated SMTP relay with TLS, or use an approved webhook integration, and store credentials outside source control.
+
 ## Uptime Kuma — application availability and team notification
 
 1. Start the stack and open `http://127.0.0.1:3001` through a local session or SSH tunnel.

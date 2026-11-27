@@ -19,6 +19,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install API dependencies
+        working-directory: api
+        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
       - name: Test API
         working-directory: api
         run: npm test
@@ -28,5 +31,84 @@ jobs:
           sed -i 's/REPLACE_WITH_A_LONG_RANDOM_PASSWORD/test-only-not-for-production/' .env
           sed -i 's/REPLACE_WITH_A_DIFFERENT_LONG_RANDOM_PASSWORD/test-only-grafana-password/' .env
           docker compose config --quiet
+          docker compose --profile monitoring config --quiet
       - name: Build local service images
         run: docker compose build
+      - name: Validate shell scripts and dashboard JSON
+        run: |
+          for script in ops/*.sh; do
+            bash -n "$script"
+            echo "Parsed successfully: $script"
+          done
+          python -m json.tool monitoring/grafana/dashboards/server-operations.json > /dev/null
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("web/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
+          if not scripts:
+              raise SystemExit("No inline script found in web/index.html")
+          Path("/tmp/devops-lab-web.js").write_text("\\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/devops-lab-web.js
+      - name: Run end-to-end routing, outage, recovery and database restore test
+        run: bash ./ops/smoke-test.sh
+      - name: Upload operational test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devops-lab-validation-evidence
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  validate-windows-scripts:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Parse scripts with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $files = @(
+            "ops/windows-preflight.ps1",
+            "ops/windows-lab.ps1",
+            "ops/windows-setup.ps1",
+            "ops/windows-incident-demo.ps1",
+            "ops/windows-ssh-lab.ps1"
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD $file),
+              [ref]$tokens,
+              [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Host ("Parse error at line {0}, column {1}: {2} - {3}" -f $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.ErrorId, $_.Message) }
+              exit 1
+            }
+            Write-Host "Parsed successfully: $file"
+          }
+      - name: Execute credential bootstrap without logging secrets
+        shell: powershell
+        run: |
+          $envPath = Join-Path $PWD ".env"
+          try {
+            & .\ops\windows-setup.ps1
+            if (-not $?) { throw "Windows setup script returned an error." }
+            $envText = Get-Content -Path $envPath -Raw
+            $pg = [regex]::Match($envText, "(?m)^POSTGRES_PASSWORD=([0-9a-f]{64})\s*$")
+            $grafana = [regex]::Match($envText, "(?m)^GRAFANA_ADMIN_PASSWORD=([0-9a-f]{64})\s*$")
+            if (-not $pg.Success -or -not $grafana.Success) {
+              throw "Generated passwords were not 64-character hexadecimal values."
+            }
+            if ($pg.Groups[1].Value -eq $grafana.Groups[1].Value) {
+              throw "PostgreSQL and Grafana passwords were not different."
+            }
+            Write-Host "PASS: setup generated two different 256-bit local passwords; values were not logged."
+          }
+          finally {
+            if (Test-Path $envPath) { Remove-Item -Path $envPath -Force }
+          }

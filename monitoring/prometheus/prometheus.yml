@@ -5,10 +5,19 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
 
   - job_name: api
     metrics_path: /metrics
@@ -32,7 +41,7 @@ scrape_configs:
     params:
       module: [http_2xx]
     static_configs:
-      - targets: ["http://web/health", "http://api:3000/health"]
+      - targets: ["http://web/health", "http://api:3000/health", "http://web/second/health"]
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

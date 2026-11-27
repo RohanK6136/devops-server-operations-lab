@@ -1,0 +1,24 @@
+global:
+  smtp_smarthost: "mailpit:1025"
+  smtp_from: "alerts@devops-lab.local"
+  smtp_require_tls: false
+
+route:
+  receiver: "local-inbox"
+  group_by: ["alertname", "job", "instance"]
+  group_wait: 5s
+  group_interval: 30s
+  repeat_interval: 4h
+
+receivers:
+  - name: "local-inbox"
+    email_configs:
+      - to: "ops-team@devops-lab.local"
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["alertname", "job", "instance"]
