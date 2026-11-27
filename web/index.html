@@ -24,6 +24,15 @@
     button { background:#1b806d; color:white; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
     pre { overflow:auto; background:#080e19; padding:14px; border-radius:9px; color:#c6d7ee; }
     .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+    label { display:block; color:#d8e4f5; font-size:13px; font-weight:600; margin-bottom:6px; }
+    input, select { width:100%; border:1px solid var(--line); border-radius:8px; padding:11px 12px; color:#edf4ff; background:#080e19; font:inherit; }
+    input:focus, select:focus { outline:2px solid var(--accent); outline-offset:2px; }
+    .notice { min-height:24px; color:var(--muted); margin:10px 0 0; font-size:13px; }
+    .event-list { list-style:none; padding:0; margin:12px 0 0; display:grid; gap:10px; }
+    .event { background:#080e19; border:1px solid var(--line); border-radius:9px; padding:12px; }
+    .event strong { display:block; color:var(--accent); }
+    .event small { display:block; color:var(--muted); margin-top:4px; }
     footer { margin-top:22px; color:var(--muted); font-size:12px; }
   </style>
 </head>
@@ -66,6 +75,34 @@
     <pre id="output">No checks run yet.</pre>
   </section>
 
+
+  <section class="card" style="margin-top:16px">
+    <h2>PostgreSQL event journal</h2>
+    <p>Create a harmless operational event and read it back from PostgreSQL. This provides visible proof that the API is connected to a persistent database.</p>
+    <form id="event-form">
+      <div class="form-grid">
+        <div>
+          <label for="event-type">Event type</label>
+          <select id="event-type" name="eventType">
+            <option value="backup-drill">Backup drill</option>
+            <option value="deployment-note">Deployment note</option>
+            <option value="incident-note">Incident note</option>
+          </select>
+        </div>
+        <div>
+          <label for="event-message">Event message</label>
+          <input id="event-message" name="message" maxlength="500" required placeholder="Example: Verified API recovery after a controlled restart">
+        </div>
+      </div>
+      <div class="actions">
+        <button id="save-event" type="submit">Save event to PostgreSQL</button>
+        <button type="button" onclick="loadEvents()">Refresh event history</button>
+      </div>
+    </form>
+    <p id="event-notice" class="notice" aria-live="polite">Loading recent events...</p>
+    <ol id="event-list" class="event-list" aria-label="Recent stored events"></ol>
+  </section>
+
   <section class="card" style="margin-top:16px">
     <h2>What to demonstrate</h2>
     <ol>
@@ -103,12 +140,79 @@ async function loadInfo() {
   try {
     const response = await fetch('/api/info', {cache:'no-store'});
     const data = await response.json();
+    if (!response.ok) throw new Error(data.error || ('HTTP ' + response.status));
     output.textContent = JSON.stringify(data, null, 2);
   } catch (error) {
     output.textContent = 'Could not load runtime info: ' + error.message;
   }
 }
+function renderEvents(events) {
+  const list = document.getElementById('event-list');
+  list.replaceChildren();
+  if (!events.length) {
+    const empty = document.createElement('li');
+    empty.className = 'notice';
+    empty.textContent = 'No events have been saved yet.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const event of events) {
+    const item = document.createElement('li');
+    item.className = 'event';
+    const heading = document.createElement('strong');
+    heading.textContent = String(event.eventType || 'event') + ' #' + String(event.id);
+    const message = document.createElement('div');
+    message.textContent = String(event.message || '');
+    const timestamp = document.createElement('small');
+    timestamp.textContent = event.createdAt ? new Date(event.createdAt).toLocaleString() : 'Timestamp unavailable';
+    item.append(heading, message, timestamp);
+    list.appendChild(item);
+  }
+}
+async function loadEvents() {
+  const notice = document.getElementById('event-notice');
+  notice.textContent = 'Loading recent events...';
+  try {
+    const response = await fetch('/api/events?limit=10', {cache:'no-store'});
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || ('HTTP ' + response.status));
+    renderEvents(payload.events || []);
+    notice.textContent = 'Loaded ' + String(payload.count || 0) + ' record(s) from PostgreSQL.';
+  } catch (error) {
+    notice.textContent = 'Could not load events: ' + error.message;
+  }
+}
+document.getElementById('event-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const notice = document.getElementById('event-notice');
+  const saveButton = document.getElementById('save-event');
+  const eventType = document.getElementById('event-type').value;
+  const message = document.getElementById('event-message').value.trim();
+  if (!message) {
+    notice.textContent = 'Enter a message before saving.';
+    return;
+  }
+  saveButton.disabled = true;
+  notice.textContent = 'Saving event to PostgreSQL...';
+  try {
+    const response = await fetch('/api/events', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({eventType, message, metadata:{source:'browser-demo'}})
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || ('HTTP ' + response.status));
+    document.getElementById('event-message').value = '';
+    notice.textContent = 'Saved event #' + String(payload.event.id) + ' to PostgreSQL.';
+    await loadEvents();
+  } catch (error) {
+    notice.textContent = 'Could not save event: ' + error.message;
+  } finally {
+    saveButton.disabled = false;
+  }
+});
 checkHealth();
+loadEvents();
 </script>
 </body>
 </html>
