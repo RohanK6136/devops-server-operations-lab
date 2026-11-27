@@ -4,6 +4,10 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+mkdir -p evidence
+LOG_FILE="evidence/ci-smoke-$(date -u +%Y%m%dT%H%M%SZ).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
 BASE_URL="http://127.0.0.1:${WEB_PORT:-8080}"
 TEMP_BODY="$(mktemp)"
 cleanup() {
@@ -176,4 +180,27 @@ echo "PASS: PostgreSQL backup archive validation and temporary-database restore 
 
 echo "== Final core service state =="
 docker compose ps
+cat > evidence/ci-smoke-summary.md <<EOF
+# CI smoke-test evidence
+
+- Date/time (UTC): $(date -u +%Y-%m-%dT%H:%M:%SZ)
+- Commit: ${GITHUB_SHA:-local-run}
+- Workflow run: ${GITHUB_RUN_ID:-local-run}
+- Main Nginx website: PASS
+- Second independent website through Nginx: PASS
+- API health/readiness: PASS
+- Prometheus and Alertmanager readiness/configuration: PASS
+- Controlled API outage: detected as HTTP ${API_STATUS}
+- Main and second websites during API outage: PASS
+- Firing notification email captured in Mailpit: PASS
+- API restart and readiness recovery: PASS
+- Resolved notification email captured in Mailpit: PASS
+- Operational event created and read from PostgreSQL: PASS
+- PostgreSQL dump and SHA-256 archive validation: PASS
+- Temporary database restore and event-row verification: PASS
+
+The log file in this artifact contains the detailed command output. The test uses generated, non-production data only.
+EOF
+
+echo "Evidence summary written to evidence/ci-smoke-summary.md"
 echo "ALL SMOKE TESTS PASSED."
