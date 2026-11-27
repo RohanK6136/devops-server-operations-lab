@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("Up", "Status", "Health", "Logs", "StopApi", "StartApi", "StopAll")]
+    [ValidateSet("Up", "MonitoringUp", "Status", "Health", "Logs", "StopApi", "StartApi", "StopAll")]
     [string]$Action = "Status",
     [ValidateRange(1, 1000)]
     [int]$Tail = 80
@@ -38,7 +38,11 @@ function Get-WebPort {
 function Test-AppHealth {
     param([int]$Port)
     $AllHealthy = $true
-    $Urls = @("http://127.0.0.1:$Port/health", "http://127.0.0.1:$Port/api/health")
+    $Urls = @(
+        "http://127.0.0.1:$Port/health",
+        "http://127.0.0.1:$Port/api/health",
+        "http://127.0.0.1:$Port/second/health"
+    )
     foreach ($Url in $Urls) {
         try {
             $Response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 5 -UseBasicParsing
@@ -64,7 +68,16 @@ try {
             }
             Invoke-Compose -Arguments @("up", "-d", "--build")
             Invoke-Compose -Arguments @("ps")
-            Write-Host "Stack start requested. Run -Action Health after the services become healthy."
+            Write-Host "Core web, API, second-site and database services started. Run -Action Health to verify."
+            Write-Host "Add monitoring later with -Action MonitoringUp."
+        }
+        "MonitoringUp" {
+            if (-not (Test-Path (Join-Path $RepoRoot ".env"))) {
+                throw ".env is missing. Copy .env.example to .env and replace the example passwords before starting the stack."
+            }
+            Invoke-Compose -Arguments @("--profile", "monitoring", "up", "-d", "--build")
+            Invoke-Compose -Arguments @("ps")
+            Write-Host "Monitoring profile requested. Grafana, Prometheus and Uptime Kuma should become available after their health/startup checks."
         }
         "Status" {
             Invoke-Compose -Arguments @("ps")
@@ -75,9 +88,9 @@ try {
         }
         "Health" {
             if (-not (Test-AppHealth -Port $WebPort)) { throw "One or more application health checks failed." }
-            Write-Host "PASS: web and API health endpoints returned successful responses." -ForegroundColor Green
+            Write-Host "PASS: main website, API and second website health endpoints returned successful responses." -ForegroundColor Green
         }
-        "Logs" { Invoke-Compose -Arguments @("logs", "--tail", "$Tail", "web", "api", "postgres") }
+        "Logs" { Invoke-Compose -Arguments @("logs", "--tail", "$Tail", "web", "api", "site-two", "postgres") }
         "StopApi" {
             Write-Warning "This intentionally stops only the API container to simulate an application incident."
             Invoke-Compose -Arguments @("stop", "api")
@@ -85,7 +98,7 @@ try {
         }
         "StartApi" {
             Invoke-Compose -Arguments @("start", "api")
-            Write-Host "Waiting up to 60 seconds for both application health endpoints..."
+            Write-Host "Waiting up to 60 seconds for the application health endpoints..."
             $Recovered = $false
             for ($Attempt = 1; $Attempt -le 12; $Attempt++) {
                 Start-Sleep -Seconds 5
