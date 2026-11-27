@@ -13,7 +13,7 @@ This repository is a standalone learning and proof-of-concept lab. It is not dep
 3. Start the core lab: docker compose up -d --build.
 4. Verify the main site at http://127.0.0.1:8080 and the second independent site at http://127.0.0.1:8080/second/. Both are routed through Nginx.
 5. When the core services are healthy, start monitoring: docker compose --profile monitoring up -d.
-6. Open Grafana at http://127.0.0.1:3000, Prometheus at http://127.0.0.1:9090 and Uptime Kuma at http://127.0.0.1:3001. Keep these interfaces on trusted/local access only.
+6. Open Grafana at http://127.0.0.1:3000, Prometheus at http://127.0.0.1:9090, Alertmanager at http://127.0.0.1:9093, Mailpit at http://127.0.0.1:8025 and Uptime Kuma at http://127.0.0.1:3001. Keep these interfaces on trusted/local access only. Alert emails are captured locally by Mailpit and are not sent externally.
 7. Read docs/MONITORING-SETUP.md and docs/DATABASE-BACKUP-RESTORE.md before using backup scripts.
 
 ## Windows operator commands
