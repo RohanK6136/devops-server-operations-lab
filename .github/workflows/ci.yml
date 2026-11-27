@@ -30,6 +30,14 @@ jobs:
           docker compose config --quiet
       - name: Build local service images
         run: docker compose build
+      - name: Validate shell scripts
+        run: |
+          for script in ops/*.sh; do
+            bash -n "$script"
+            echo "Parsed successfully: $script"
+          done
+      - name: Run end-to-end routing, outage, recovery and database restore test
+        run: ./ops/smoke-test.sh
 
   validate-windows-scripts:
     runs-on: windows-latest
@@ -41,7 +49,8 @@ jobs:
         run: |
           $files = @(
             "ops/windows-preflight.ps1",
-            "ops/windows-lab.ps1"
+            "ops/windows-lab.ps1",
+            "ops/windows-setup.ps1"
           )
           foreach ($file in $files) {
             $tokens = $null
