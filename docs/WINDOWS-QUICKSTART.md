@@ -67,7 +67,13 @@ Grafana credentials are the values set in .env. Uptime Kuma asks you to create i
 
 ## 5. Demonstrate a controlled application incident
 
-Only do this against the local lab:
+The recommended manager demonstration is a single command:
+
+    .\ops\windows-incident-demo.ps1
+
+It verifies the baseline first, stops only the local API container, confirms the main and second websites remain available, checks that the API route returns a 5xx response, restarts the API, verifies recovery, and saves a timestamped transcript under evidence. It attempts to restart the API during cleanup if a check fails.
+
+For manual control, only do the following against the local lab:
 
     .\ops\windows-lab.ps1 -Action StopApi
     .\ops\windows-lab.ps1 -Action Health
