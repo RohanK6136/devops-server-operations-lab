@@ -47,6 +47,41 @@ curl --silent --show-error --fail "$BASE_URL/api/info" -o "$TEMP_BODY"
 grep -q "devops-lab-api" "$TEMP_BODY"
 echo "PASS: API runtime information endpoint responds."
 
+echo "== Starting monitoring and local alert inbox =="
+docker compose --profile monitoring up -d
+require_http "http://127.0.0.1:9090/-/ready" "Prometheus readiness"
+require_http "http://127.0.0.1:9093/-/ready" "Alertmanager readiness"
+require_http "http://127.0.0.1:8025/" "Mailpit local email inbox"
+
+wait_for_alert_email() {
+  local attempt
+  for attempt in $(seq 1 50); do
+    if python3 - "http://127.0.0.1:8025/api/v1/messages?limit=50" <<'PY'
+import json
+import sys
+import urllib.request
+
+with urllib.request.urlopen(sys.argv[1], timeout=5) as response:
+    payload = json.load(response)
+
+for message in payload.get("messages", []):
+    subject = message.get("Subject", "")
+    snippet = message.get("Snippet", "")
+    if "PublicProbeFailed" in subject or "PublicProbeFailed" in snippet:
+        print("PASS: Alertmanager email received in Mailpit: " + subject)
+        raise SystemExit(0)
+
+raise SystemExit(1)
+PY
+    then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "FAIL: Alertmanager notification for PublicProbeFailed was not received in Mailpit." >&2
+  return 1
+}
+
 echo "== Simulating API outage =="
 docker compose stop api
 API_STATUS="$(curl --silent --show-error --output "$TEMP_BODY" --write-out '%{http_code}' --max-time 8 "$BASE_URL/api/health" || true)"
@@ -57,11 +92,14 @@ esac
 
 require_http "$BASE_URL/health" "Nginx remains available during API outage"
 require_http "$BASE_URL/second/health" "Second website remains available during API outage"
+echo "== Waiting for Prometheus rule evaluation and email notification =="
+wait_for_alert_email
 
 echo "== Recovering API =="
 docker compose start api
 require_http "$BASE_URL/api/health" "API readiness after restart"
 echo "PASS: API recovered."
+echo "Open http://127.0.0.1:8025 to inspect the captured incident email and its resolution notification."
 
 echo "== Verifying PostgreSQL backup and isolated restore =="
 ./ops/backup-postgres.sh
