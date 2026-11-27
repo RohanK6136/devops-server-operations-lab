@@ -37,7 +37,7 @@ The setup script generates two different cryptographically random local password
     .\ops\windows-lab.ps1 -Action Status
     .\ops\windows-lab.ps1 -Action Health
 
-The core profile starts the main website, API, second website and PostgreSQL. It keeps the monitoring stack stopped initially to reduce laptop memory use.
+The core profile starts the main website, API, second website and PostgreSQL. The API creates a PostgreSQL-backed events table on startup and exposes read/write operations at /api/events. It keeps the monitoring stack stopped initially to reduce laptop memory use.
 
 The two websites share one Nginx entry point:
 
@@ -49,6 +49,14 @@ The two websites share one Nginx entry point:
 | API readiness through Nginx | http://127.0.0.1:8080/api/health |
 
 Only Nginx publishes the website port. The API, second website and database remain on private Docker networks.
+
+To create a sample record from PowerShell:
+
+    $event = @{ eventType = 'backup-drill'; message = 'Sample record for backup and restore verification'; metadata = @{ source = 'manager-demo' } } | ConvertTo-Json -Depth 4
+    Invoke-RestMethod -Uri 'http://127.0.0.1:8080/api/events' -Method Post -ContentType 'application/json' -Body $event
+    Invoke-RestMethod -Uri 'http://127.0.0.1:8080/api/events?limit=10' -Method Get
+
+The API validates event fields and stores records in PostgreSQL using parameterised SQL. Do not enter candidate data, credentials, personal information, or other real business data in this learning lab.
 
 ## 4. Start monitoring when the core stack is healthy
 
