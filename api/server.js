@@ -229,7 +229,7 @@ function createServer({ checkDependency = checkTcp, store = null } = {}) {
       return send(res, dependencyReady ? 200 : 503, {
         status: dependencyReady ? 'ready' : 'not_ready',
         service: 'devops-lab-api',
-        dependencies: { postgresTcp: dependencyReady },
+        dependencies: { postgresQuery: dependencyReady },
         checkedAt: new Date().toISOString()
       });
     }
