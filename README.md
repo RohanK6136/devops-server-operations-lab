@@ -24,8 +24,9 @@ PowerShell 5.1 preflight and lab commands are provided:
     .\ops\windows-lab.ps1 -Action Up
     .\ops\windows-lab.ps1 -Action MonitoringUp
     .\ops\windows-lab.ps1 -Action Health
+    .\ops\windows-incident-demo.ps1
 
-The preflight distinguishes an installed Docker CLI from a reachable Docker Engine. The lab script also provides status, logs, a controlled API stop/restart and a safe stop that preserves named volumes.
+The preflight distinguishes an installed Docker CLI from a reachable Docker Engine. The setup script creates different local secrets without printing them. The lab script provides status, logs, controlled API recovery and a safe stop that preserves named volumes. The incident demo captures a timestamped failure-and-recovery transcript.
 
 ## Validation
 
