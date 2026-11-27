@@ -73,7 +73,7 @@ The recommended manager demonstration is a single command:
 
     .\ops\windows-incident-demo.ps1
 
-It verifies the baseline first, stops only the local API container, confirms the main and second websites remain available, checks that the API route returns a 5xx response, restarts the API, verifies recovery, and saves a timestamped transcript under evidence. It attempts to restart the API during cleanup if a check fails. To demonstrate email alerts, leave the monitoring profile running and open Mailpit at http://127.0.0.1:8025.
+It verifies the baseline first, stops only the local API container, confirms the main and second websites remain available, checks that the API route returns a 5xx response, restarts the API, verifies recovery, and saves a timestamped transcript under evidence. When Prometheus, Alertmanager and Mailpit are running, it also waits for the firing and resolved notification emails (up to 120 seconds for the firing alert and 60 seconds for recovery). It attempts to restart the API during cleanup if a check fails. Open Mailpit at http://127.0.0.1:8025 to show both messages.
 
 For manual control, only do the following against the local lab:
 
