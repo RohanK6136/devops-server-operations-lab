@@ -32,7 +32,7 @@ scrape_configs:
     params:
       module: [http_2xx]
     static_configs:
-      - targets: ["http://web/health", "http://api:3000/health"]
+      - targets: ["http://web/health", "http://api:3000/health", "http://web/second/health"]
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
