@@ -45,7 +45,7 @@ if ($PostgresSecret -eq $GrafanaSecret) {
 
 $Configured = $Template.Replace($PostgresPlaceholder, $PostgresSecret)
 $Configured = $Configured.Replace($GrafanaPlaceholder, $GrafanaSecret)
-$Utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
+$Utf8WithoutBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
 
 [System.IO.File]::WriteAllText($EnvPath, $Configured, $Utf8WithoutBom)
 
