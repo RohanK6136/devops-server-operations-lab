@@ -37,7 +37,8 @@ require_http "$BASE_URL/second/health" "Second website health through Nginx"
 
 curl --silent --show-error --fail "$BASE_URL/" -o "$TEMP_BODY"
 grep -q "DevOps Operations Lab" "$TEMP_BODY"
-echo "PASS: main website content is served."
+grep -q "PostgreSQL event journal" "$TEMP_BODY"
+echo "PASS: main website and database event-journal UI are served."
 
 curl --silent --show-error --fail "$BASE_URL/second/" -o "$TEMP_BODY"
 grep -q "One server" "$TEMP_BODY"
