@@ -26,13 +26,13 @@ A message such as "failed to connect to the docker API ... dockerDesktopLinuxEng
 
 From the repository root:
 
-    Copy-Item .env.example .env
-    notepad .env
+    .\ops\windows-setup.ps1
 
-Replace both password placeholders with different, strong local-only passwords. Do not commit .env, share its contents in screenshots, or use company/production credentials in this lab.
+The setup script generates two different cryptographically random local passwords, writes them to .env without printing them, and checks Compose syntax when the Docker CLI is installed. It will not overwrite an existing .env. Do not commit .env, share its contents in screenshots, or use company/production credentials in this lab.
 
 ## 3. Start the core application services
 
+    .\ops\windows-setup.ps1
     .\ops\windows-lab.ps1 -Action Up
     .\ops\windows-lab.ps1 -Action Status
     .\ops\windows-lab.ps1 -Action Health
