@@ -158,11 +158,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "docker stats failed." }
 
     Write-Host ""
-    Write-Host "DEMO RESULT: PASS — API outage detected and API recovered; both websites stayed available." -ForegroundColor Green
+    Write-Host "DEMO RESULT: PASS - API outage detected and API recovered; both websites stayed available." -ForegroundColor Green
 }
 catch {
     $ExitCode = 1
-    Write-Host ("DEMO RESULT: FAILED — {0}" -f $_.Exception.Message) -ForegroundColor Red
+    Write-Host ("DEMO RESULT: FAILED - {0}" -f $_.Exception.Message) -ForegroundColor Red
 }
 finally {
     if ($ApiStopped) {
