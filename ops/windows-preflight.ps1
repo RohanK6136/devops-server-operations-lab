@@ -93,7 +93,7 @@ try {
 
     Write-Host ""
     Write-Host "=== LOCAL LAB PORTS ===" -ForegroundColor Cyan
-    foreach ($Port in @(8080, 9090, 3000, 3001)) {
+    foreach ($Port in @(8080, 9090, 3000, 3001, 9093, 8025)) {
         $PortResult = Test-NetConnection -ComputerName "127.0.0.1" -Port $Port -WarningAction SilentlyContinue
         Write-Host ("127.0.0.1:{0} reachable: {1}" -f $Port, $PortResult.TcpTestSucceeded)
     }
