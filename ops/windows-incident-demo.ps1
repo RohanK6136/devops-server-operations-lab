@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [ValidateRange(10, 180)]
-    [int]$RecoveryTimeoutSeconds = 60
+    [int]$RecoveryTimeoutSeconds = 60,
+    [ValidateRange(30, 240)]
+    [int]$AlertTimeoutSeconds = 120
 )
 
 Set-StrictMode -Version Latest
@@ -51,6 +53,60 @@ function Assert-Http200 {
     }
 }
 
+function Get-MailpitMessages {
+    try {
+        return Invoke-RestMethod -Uri "http://127.0.0.1:8025/api/v1/messages?limit=50" -Method Get -TimeoutSec 5
+    }
+    catch {
+        return $null
+    }
+}
+
+function Wait-MailpitNotification {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Firing", "Resolved")]
+        [string]$State,
+        [Parameter(Mandatory = $true)]
+        [string[]]$KnownMessageIds,
+        [ValidateRange(10, 240)]
+        [int]$TimeoutSeconds = 120
+    )
+
+    $Attempts = [Math]::Ceiling($TimeoutSeconds / 5)
+    for ($Attempt = 1; $Attempt -le $Attempts; $Attempt++) {
+        $Mailbox = Get-MailpitMessages
+        if ($null -ne $Mailbox -and $null -ne $Mailbox.messages) {
+            foreach ($Message in $Mailbox.messages) {
+                $MessageId = [string]$Message.ID
+                if ([string]::IsNullOrWhiteSpace($MessageId) -or $KnownMessageIds -contains $MessageId) {
+                    continue
+                }
+
+                $Summary = ([string]$Message.Subject) + " " + ([string]$Message.Snippet)
+                if ($Summary -notmatch "PublicProbeFailed") {
+                    continue
+                }
+
+                if ($State -eq "Firing" -and $Summary -match "(?i)resolved") {
+                    continue
+                }
+                if ($State -eq "Resolved" -and $Summary -notmatch "(?i)resolved") {
+                    continue
+                }
+
+                Write-Host ("PASS: {0} alert email captured by Mailpit: {1}" -f $State, [string]$Message.Subject) -ForegroundColor Green
+                return $MessageId
+            }
+        }
+
+        Write-Host ("Waiting for {0} notification: {1}/{2}" -f $State, $Attempt, $Attempts)
+        Start-Sleep -Seconds 5
+    }
+
+    throw ("Mailpit did not receive a new {0} PublicProbeFailed notification within {1} seconds. Inspect Prometheus /alerts and Alertmanager logs." -f $State, $TimeoutSeconds)
+}
+
 function Assert-LocalEnvironment {
     $EnvPath = Join-Path $RepoRoot ".env"
     if (-not (Test-Path $EnvPath)) {
@@ -95,6 +151,26 @@ try {
 
     Assert-LocalEnvironment
     $BaseUrl = "http://127.0.0.1:$WebPort"
+    $MailpitMessages = Get-MailpitMessages
+    $KnownMailMessageIds = @()
+    $AlertDeliveryEnabled = (
+        (Get-HttpStatus -Url "http://127.0.0.1:9090/-/ready") -eq 200 -and
+        (Get-HttpStatus -Url "http://127.0.0.1:9093/-/ready") -eq 200 -and
+        $null -ne $MailpitMessages
+    )
+    if ($null -ne $MailpitMessages -and $null -ne $MailpitMessages.messages) {
+        foreach ($Message in $MailpitMessages.messages) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$Message.ID)) {
+                $KnownMailMessageIds += [string]$Message.ID
+            }
+        }
+    }
+    if ($AlertDeliveryEnabled) {
+        Write-Host "Alert delivery is enabled. New firing and resolved notifications will be checked in Mailpit."
+    }
+    else {
+        Write-Host "Monitoring email delivery is not running. The application outage/recovery demo will continue without waiting for email alerts."
+    }
 
     Write-Host ""
     Write-Host "=== 1. Baseline: verify all services before the incident ===" -ForegroundColor Cyan
@@ -119,6 +195,13 @@ try {
         throw "Expected an HTTP 5xx response from the API route during the controlled outage; received HTTP $FailureStatus."
     }
     Write-Host "PASS: the API outage is visible through the reverse proxy." -ForegroundColor Green
+    if ($AlertDeliveryEnabled) {
+        Write-Host "Waiting for Prometheus evaluation and Alertmanager email delivery..."
+        $FiringMessageId = Wait-MailpitNotification -State Firing -KnownMessageIds $KnownMailMessageIds -TimeoutSeconds $AlertTimeoutSeconds
+        if (-not [string]::IsNullOrWhiteSpace([string]$FiringMessageId)) {
+            $KnownMailMessageIds += [string]$FiringMessageId
+        }
+    }
 
     Assert-Http200 -Url "$BaseUrl/health" -Label "Main Nginx website remains available"
     Assert-Http200 -Url "$BaseUrl/second/health" -Label "Second website remains available"
@@ -150,6 +233,11 @@ try {
 
     Assert-Http200 -Url "$BaseUrl/health" -Label "Main website after recovery"
     Assert-Http200 -Url "$BaseUrl/second/health" -Label "Second website after recovery"
+    if ($AlertDeliveryEnabled) {
+        Write-Host "Waiting for the resolved-alert email..."
+        $null = Wait-MailpitNotification -State Resolved -KnownMessageIds $KnownMailMessageIds -TimeoutSeconds 60
+        Write-Host "Captured firing and resolved alert emails: http://127.0.0.1:8025" -ForegroundColor Green
+    }
 
     Write-Host ""
     Write-Host "=== 5. Final service and resource snapshot ===" -ForegroundColor Cyan
