@@ -28,7 +28,7 @@ function Assert-DockerEngine {
 function Assert-LabEnvironment {
     $EnvFile = Join-Path $RepoRoot ".env"
     if (-not (Test-Path $EnvFile)) {
-        throw ".env is missing. Run .\\ops\\windows-setup.ps1 to generate local credentials before starting the stack."
+        throw ".env is missing. Run .\ops\windows-setup.ps1 to generate local credentials before starting the stack."
     }
 
     $EnvironmentText = Get-Content -Path $EnvFile -Raw
@@ -36,8 +36,8 @@ function Assert-LabEnvironment {
         throw ".env still contains example placeholders. Run the Windows setup script or replace the placeholders with strong local-only values."
     }
 
-    $PostgresMatch = [regex]::Match($EnvironmentText, "(?m)^\\s*POSTGRES_PASSWORD\\s*=\\s*([^\\r\\n]+)\\s*$")
-    $GrafanaMatch = [regex]::Match($EnvironmentText, "(?m)^\\s*GRAFANA_ADMIN_PASSWORD\\s*=\\s*([^\\r\\n]+)\\s*$")
+    $PostgresMatch = [regex]::Match($EnvironmentText, "(?m)^\s*POSTGRES_PASSWORD\s*=\s*([^\r\n]+)\s*$")
+    $GrafanaMatch = [regex]::Match($EnvironmentText, "(?m)^\s*GRAFANA_ADMIN_PASSWORD\s*=\s*([^\r\n]+)\s*$")
     if (-not $PostgresMatch.Success -or -not $GrafanaMatch.Success) {
         throw ".env must define both POSTGRES_PASSWORD and GRAFANA_ADMIN_PASSWORD."
     }
@@ -45,7 +45,7 @@ function Assert-LabEnvironment {
     $PostgresSecret = $PostgresMatch.Groups[1].Value.Trim()
     $GrafanaSecret = $GrafanaMatch.Groups[1].Value.Trim()
     if ($PostgresSecret.Length -lt 32 -or $GrafanaSecret.Length -lt 32) {
-        throw "Both local passwords must contain at least 32 characters. Run .\\ops\\windows-setup.ps1 to generate strong values."
+        throw "Both local passwords must contain at least 32 characters. Run .\ops\windows-setup.ps1 to generate strong values."
     }
     if ($PostgresSecret -eq $GrafanaSecret) {
         throw "PostgreSQL and Grafana passwords must be different."
@@ -103,9 +103,7 @@ try {
             Write-Host "Add monitoring later with -Action MonitoringUp."
         }
         "MonitoringUp" {
-            if (-not (Test-Path (Join-Path $RepoRoot ".env"))) {
-                throw ".env is missing. Copy .env.example to .env and replace the example passwords before starting the stack."
-            }
+            Assert-LabEnvironment
             Invoke-Compose -Arguments @("--profile", "monitoring", "up", "-d", "--build")
             Invoke-Compose -Arguments @("ps")
             Write-Host "Monitoring profile requested. Grafana, Prometheus and Uptime Kuma should become available after their health/startup checks."
