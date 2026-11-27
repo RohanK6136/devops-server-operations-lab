@@ -14,7 +14,7 @@ This repository is a standalone learning and proof-of-concept lab. It is not dep
 4. Verify the main site at http://127.0.0.1:8080 and the second independent site at http://127.0.0.1:8080/second/. Both are routed through Nginx.
 5. Verify persisted event records through GET/POST /api/events; then start monitoring when core services are healthy: docker compose --profile monitoring up -d.
 6. Open Grafana at http://127.0.0.1:3000, Prometheus at http://127.0.0.1:9090, Alertmanager at http://127.0.0.1:9093, Mailpit at http://127.0.0.1:8025 and Uptime Kuma at http://127.0.0.1:3001. Keep these interfaces on trusted/local access only. Alert emails are captured locally by Mailpit and are not sent externally.
-7. Read docs/MONITORING-SETUP.md and docs/DATABASE-BACKUP-RESTORE.md before using backup scripts.
+7. Explore docs/API-OPERATIONS.md for the PostgreSQL event API, then read docs/MONITORING-SETUP.md and docs/DATABASE-BACKUP-RESTORE.md.
 
 ## Windows operator commands
 
