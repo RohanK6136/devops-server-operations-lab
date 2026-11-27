@@ -1,23 +1,36 @@
 # Server Operations & SRE Lab
 
-A free/open-source starter lab for application observability, uptime checks, infrastructure metrics, PostgreSQL backups and restore verification, and operational runbooks.
+A free/open-source local lab for practical server administration, multi-site reverse proxying, application observability, uptime checks, PostgreSQL backups and restore verification.
 
 ## Scope
 
-This repository is a standalone learning and proof-of-concept lab. It is not deployed to the company server and must be reviewed against actual host capacity, network policy, and backup retention requirements before production use.
+This repository is a standalone learning and proof-of-concept lab. It is not deployed to the company server and must be reviewed against actual host capacity, network policy, security requirements and backup retention before production use.
 
 ## Quick start
 
-1. Copy `.env.example` to `.env` and replace all example credentials with strong local secrets.
-2. Review `docker-compose.yml`, firewall requirements, volume mounts and exposed ports.
-3. Start the lab with `docker compose up -d --build`.
-4. Open the web dashboard and monitoring services only from trusted networks; do not expose Prometheus, Grafana or exporters publicly without authentication and network controls.
-5. Read `docs/MONITORING-SETUP.md` and `docs/DATABASE-BACKUP-RESTORE.md` before using backup scripts.
+1. On Windows, start Docker Desktop and wait for its Linux engine to show **Running**. See [Windows quick start](docs/WINDOWS-QUICKSTART.md).
+2. Copy .env.example to .env and replace all example credentials with strong local-only passwords. Never commit .env.
+3. Start the core lab: docker compose up -d --build.
+4. Verify the main site at http://127.0.0.1:8080 and the second independent site at http://127.0.0.1:8080/second/. Both are routed through Nginx.
+5. When the core services are healthy, start monitoring: docker compose --profile monitoring up -d.
+6. Open Grafana at http://127.0.0.1:3000, Prometheus at http://127.0.0.1:9090 and Uptime Kuma at http://127.0.0.1:3001. Keep these interfaces on trusted/local access only.
+7. Read docs/MONITORING-SETUP.md and docs/DATABASE-BACKUP-RESTORE.md before using backup scripts.
+
+## Windows operator commands
+
+PowerShell 5.1 preflight and lab commands are provided:
+
+    .\ops\windows-preflight.ps1
+    .\ops\windows-lab.ps1 -Action Up
+    .\ops\windows-lab.ps1 -Action MonitoringUp
+    .\ops\windows-lab.ps1 -Action Health
+
+The preflight distinguishes an installed Docker CLI from a reachable Docker Engine. The lab script also provides status, logs, a controlled API stop/restart and a safe stop that preserves named volumes.
 
 ## Validation
 
-Run API tests with `cd api && npm test`. Shell scripts can be syntax-checked using `bash -n ops/*.sh`.
+Run API tests with cd api; npm test. GitHub Actions also validates the Compose configuration and builds the local web/API images. Shell scripts can be syntax-checked using bash -n ops/*.sh.
 
 ## Important
 
-No company credentials, production data, or real customer information belong in this repository. Use a private production configuration and a separate secret manager for deployment.
+No company credentials, production data, or real customer information belong in this repository. The monitoring containers are for a local proof of concept only; assess privileged host mounts, resource limits, networking, authentication, alert routing and off-host backups before any production use.
