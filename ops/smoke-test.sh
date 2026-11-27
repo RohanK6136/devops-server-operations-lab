@@ -52,6 +52,8 @@ docker compose --profile monitoring up -d
 require_http "http://127.0.0.1:9090/-/ready" "Prometheus readiness"
 require_http "http://127.0.0.1:9093/-/ready" "Alertmanager readiness"
 require_http "http://127.0.0.1:8025/" "Mailpit local email inbox"
+docker compose exec -T prometheus promtool check config /etc/prometheus/prometheus.yml
+docker compose exec -T alertmanager amtool check-config /etc/alertmanager/alertmanager.yml
 
 wait_for_alert_email() {
   local attempt
@@ -82,6 +84,36 @@ PY
   return 1
 }
 
+wait_for_resolved_email() {
+  local attempt
+  for attempt in $(seq 1 30); do
+    if python3 - "http://127.0.0.1:8025/api/v1/messages?limit=50" <<'PY'
+import json
+import sys
+import urllib.request
+
+with urllib.request.urlopen(sys.argv[1], timeout=5) as response:
+    payload = json.load(response)
+
+for message in payload.get("messages", []):
+    subject = message.get("Subject", "")
+    snippet = message.get("Snippet", "")
+    combined = (subject + " " + snippet).lower()
+    if "publicprobefailed" in combined and "resolved" in combined:
+        print("PASS: recovery email received in Mailpit: " + subject)
+        raise SystemExit(0)
+
+raise SystemExit(1)
+PY
+    then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "FAIL: resolved notification for PublicProbeFailed was not received in Mailpit." >&2
+  return 1
+}
+
 echo "== Simulating API outage =="
 docker compose stop api
 API_STATUS="$(curl --silent --show-error --output "$TEMP_BODY" --write-out '%{http_code}' --max-time 8 "$BASE_URL/api/health" || true)"
@@ -99,7 +131,8 @@ echo "== Recovering API =="
 docker compose start api
 require_http "$BASE_URL/api/health" "API readiness after restart"
 echo "PASS: API recovered."
-echo "Open http://127.0.0.1:8025 to inspect the captured incident email and its resolution notification."
+wait_for_resolved_email
+echo "Open http://127.0.0.1:8025 to inspect the captured firing and resolved notifications."
 
 echo "== Verifying PostgreSQL backup and isolated restore =="
 ./ops/backup-postgres.sh
