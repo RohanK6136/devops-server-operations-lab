@@ -28,14 +28,16 @@ jobs:
           sed -i 's/REPLACE_WITH_A_LONG_RANDOM_PASSWORD/test-only-not-for-production/' .env
           sed -i 's/REPLACE_WITH_A_DIFFERENT_LONG_RANDOM_PASSWORD/test-only-grafana-password/' .env
           docker compose config --quiet
+          docker compose --profile monitoring config --quiet
       - name: Build local service images
         run: docker compose build
-      - name: Validate shell scripts
+      - name: Validate shell scripts and dashboard JSON
         run: |
           for script in ops/*.sh; do
             bash -n "$script"
             echo "Parsed successfully: $script"
           done
+          python -m json.tool monitoring/grafana/dashboards/server-operations.json > /dev/null
       - name: Run end-to-end routing, outage, recovery and database restore test
         run: bash ./ops/smoke-test.sh
 
@@ -50,7 +52,8 @@ jobs:
           $files = @(
             "ops/windows-preflight.ps1",
             "ops/windows-lab.ps1",
-            "ops/windows-setup.ps1"
+            "ops/windows-setup.ps1",
+            "ops/windows-incident-demo.ps1"
           )
           foreach ($file in $files) {
             $tokens = $null
