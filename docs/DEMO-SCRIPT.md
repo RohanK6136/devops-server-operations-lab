@@ -13,7 +13,7 @@ This is a safe local lab, not the production company server. It demonstrates two
     docker compose --profile monitoring up -d
     docker compose ps
 
-Open the main website at http://127.0.0.1:8080 and the independent second website at http://127.0.0.1:8080/second/. Both are routed by the same Nginx entry point. Open Grafana at http://127.0.0.1:3000, Prometheus at http://127.0.0.1:9090, Alertmanager at http://127.0.0.1:9093, Mailpit at http://127.0.0.1:8025, and Uptime Kuma at http://127.0.0.1:3001. Grafana credentials come from .env; create the Uptime Kuma administrator on first launch. Mailpit captures alert emails locally and never sends them to real recipients.
+Open the main website at http://127.0.0.1:8080, use the PostgreSQL event journal to save a sample backup-drill record, and open the independent second website at http://127.0.0.1:8080/second/. Both are routed by the same Nginx entry point. Open Grafana at http://127.0.0.1:3000, Prometheus at http://127.0.0.1:9090, Alertmanager at http://127.0.0.1:9093, Mailpit at http://127.0.0.1:8025, and Uptime Kuma at http://127.0.0.1:3001. Grafana credentials come from .env; create the Uptime Kuma administrator on first launch. Mailpit captures alert emails locally and never sends them to real recipients.
 
 ## 3. Show routing, health and metrics (3 min)
 
