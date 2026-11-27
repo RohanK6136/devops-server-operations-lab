@@ -25,6 +25,39 @@ function Assert-DockerEngine {
     }
 }
 
+function Assert-LabEnvironment {
+    $EnvFile = Join-Path $RepoRoot ".env"
+    if (-not (Test-Path $EnvFile)) {
+        throw ".env is missing. Run .\\ops\\windows-setup.ps1 to generate local credentials before starting the stack."
+    }
+
+    $EnvironmentText = Get-Content -Path $EnvFile -Raw
+    if ($EnvironmentText -match "REPLACE_WITH_") {
+        throw ".env still contains example placeholders. Run the Windows setup script or replace the placeholders with strong local-only values."
+    }
+
+    $PostgresMatch = [regex]::Match($EnvironmentText, "(?m)^\\s*POSTGRES_PASSWORD\\s*=\\s*([^\\r\\n]+)\\s*$")
+    $GrafanaMatch = [regex]::Match($EnvironmentText, "(?m)^\\s*GRAFANA_ADMIN_PASSWORD\\s*=\\s*([^\\r\\n]+)\\s*$")
+    if (-not $PostgresMatch.Success -or -not $GrafanaMatch.Success) {
+        throw ".env must define both POSTGRES_PASSWORD and GRAFANA_ADMIN_PASSWORD."
+    }
+
+    $PostgresSecret = $PostgresMatch.Groups[1].Value.Trim()
+    $GrafanaSecret = $GrafanaMatch.Groups[1].Value.Trim()
+    if ($PostgresSecret.Length -lt 32 -or $GrafanaSecret.Length -lt 32) {
+        throw "Both local passwords must contain at least 32 characters. Run .\\ops\\windows-setup.ps1 to generate strong values."
+    }
+    if ($PostgresSecret -eq $GrafanaSecret) {
+        throw "PostgreSQL and Grafana passwords must be different."
+    }
+
+    # Quiet mode validates interpolation and Compose syntax without printing resolved secrets.
+    & docker compose --project-directory $RepoRoot config --quiet
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker Compose configuration validation failed. Review .env.example and docker-compose.yml; do not paste secret values into chat."
+    }
+}
+
 function Get-WebPort {
     $Port = 8080
     $EnvFile = Join-Path $RepoRoot ".env"
@@ -63,9 +96,7 @@ try {
     $WebPort = Get-WebPort
     switch ($Action) {
         "Up" {
-            if (-not (Test-Path (Join-Path $RepoRoot ".env"))) {
-                throw ".env is missing. Copy .env.example to .env and replace the example passwords before starting the stack."
-            }
+            Assert-LabEnvironment
             Invoke-Compose -Arguments @("up", "-d", "--build")
             Invoke-Compose -Arguments @("ps")
             Write-Host "Core web, API, second-site and database services started. Run -Action Health to verify."
