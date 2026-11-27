@@ -69,3 +69,25 @@ jobs:
             }
             Write-Host "Parsed successfully: $file"
           }
+          }
+      - name: Execute credential bootstrap without logging secrets
+        shell: powershell
+        run: |
+          $envPath = Join-Path $PWD ".env"
+          try {
+            & .\ops\windows-setup.ps1
+            if (-not $?) { throw "Windows setup script returned an error." }
+            $envText = Get-Content -Path $envPath -Raw
+            $pg = [regex]::Match($envText, "(?m)^POSTGRES_PASSWORD=([0-9a-f]{64})\s*$")
+            $grafana = [regex]::Match($envText, "(?m)^GRAFANA_ADMIN_PASSWORD=([0-9a-f]{64})\s*$")
+            if (-not $pg.Success -or -not $grafana.Success) {
+              throw "Generated passwords were not 64-character hexadecimal values."
+            }
+            if ($pg.Groups[1].Value -eq $grafana.Groups[1].Value) {
+              throw "PostgreSQL and Grafana passwords were not different."
+            }
+            Write-Host "PASS: setup generated two different 256-bit local passwords; values were not logged."
+          }
+          finally {
+            if (Test-Path $envPath) { Remove-Item -Path $envPath -Force }
+          }
