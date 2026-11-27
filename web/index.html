@@ -20,6 +20,7 @@
     .muted { color:var(--muted); font-size:13px; }
     .status { display:inline-block; width:9px; height:9px; border-radius:50%; background:#e3a84b; margin-right:8px; }
     .status.ok { background:var(--accent); }
+    a { color:var(--accent); }
     button { background:#1b806d; color:white; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
     pre { overflow:auto; background:#080e19; padding:14px; border-radius:9px; color:#c6d7ee; }
     .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
@@ -41,7 +42,7 @@
     <article class="card">
       <div class="muted">WEB / NGINX</div>
       <div class="value"><span class="status ok"></span>Online</div>
-      <div class="muted">Serving this dashboard on port 8080</div>
+      <div class="muted">Serving the main website on port 8080</div>
     </article>
     <article class="card">
       <div class="muted">API SERVICE</div>
@@ -49,9 +50,9 @@
       <div class="muted" id="api-detail">Waiting for health check</div>
     </article>
     <article class="card">
-      <div class="muted">DEPLOYMENT MODEL</div>
-      <div class="value">Docker</div>
-      <div class="muted">Two containers · private bridge network</div>
+      <div class="muted">SECOND WEBSITE</div>
+      <div class="value">Site Two</div>
+      <div class="muted"><a href="/second/">Open the separately containerised website</a></div>
     </article>
   </section>
 
@@ -69,10 +70,11 @@
     <h2>What to demonstrate</h2>
     <ol>
       <li>Show the running containers with <code>docker compose ps</code>.</li>
+      <li>Open both websites through the same Nginx entry point.</li>
       <li>Show API and Nginx logs with <code>docker compose logs</code>.</li>
       <li>Stop the API and observe the failed health check.</li>
       <li>Restart the API and verify recovery.</li>
-      <li>Explain why only Nginx publishes a host port.</li>
+      <li>Explain why only Nginx publishes the website port.</li>
     </ol>
   </section>
   <footer>Learning lab only. Do not use this sample as a public production deployment.</footer>
@@ -87,13 +89,13 @@ async function checkHealth() {
     const response = await fetch('/api/health', {cache:'no-store'});
     const data = await response.json();
     output.textContent = JSON.stringify({httpStatus:response.status, ...data}, null, 2);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
     status.innerHTML = '<span class="status ok"></span>Healthy';
-    detail.textContent = `Checked ${new Date(data.checkedAt).toLocaleTimeString()}`;
+    detail.textContent = 'Checked ' + new Date(data.checkedAt).toLocaleTimeString();
   } catch (error) {
     status.innerHTML = '<span class="status"></span>Unavailable';
     detail.textContent = error.message;
-    output.textContent = `Health check failed: ${error.message}`;
+    output.textContent = 'Health check failed: ' + error.message;
   }
 }
 async function loadInfo() {
@@ -103,7 +105,7 @@ async function loadInfo() {
     const data = await response.json();
     output.textContent = JSON.stringify(data, null, 2);
   } catch (error) {
-    output.textContent = `Could not load runtime info: ${error.message}`;
+    output.textContent = 'Could not load runtime info: ' + error.message;
   }
 }
 checkHealth();
