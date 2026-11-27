@@ -34,12 +34,20 @@ In Grafana, open **Server Operations Overview**. Explain host CPU/memory/disk an
 
 Explain that the main Nginx health endpoint and second website can remain available while the API route fails. Show the pending/firing probe alert in Prometheus, then open Mailpit and show the captured PublicProbeFailed email. Restart the API, confirm the alert resolves, and show the recovery email in Mailpit. Prometheus evaluates the rule for one minute before it fires.
 
-## 5. Demonstrate database recovery discipline (2 min)
+## 5. Demonstrate database recovery discipline (3 min)
 
-    ./ops/backup-postgres.sh
-    ./ops/restore-test.sh
+Create a sample operational event, then back it up and restore it into an isolated temporary database:
 
-Explain that the restore test uses a temporary database and does not overwrite the original database. Off-host encrypted copies and a tested notification route remain required before production.
+~~~bash
+curl -i -H 'Content-Type: application/json' -X POST \
+  -d '{"eventType":"backup-drill","message":"Manager demo record for restore proof","metadata":{"source":"demo"}}' \
+  http://127.0.0.1:8080/api/events
+curl -i http://127.0.0.1:8080/api/events
+./ops/backup-postgres.sh
+./ops/restore-test.sh
+~~~
+
+The restore script checks the checksum, verifies that the events table exists and confirms at least one event row was recovered in a temporary database. It drops only the temporary database, not the source data. Off-host encrypted copies and an agreed retention policy remain required before production.
 
 ## 6. Close (2 min)
 
