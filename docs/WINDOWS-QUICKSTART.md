@@ -105,7 +105,25 @@ Do not run docker compose down -v for this learning lab unless you deliberately 
 
 When this Compose stack runs through Docker Desktop's Linux engine, Node Exporter and cAdvisor observe the Docker Linux environment and its containers. They do not provide a complete view of Windows host CPU/memory/disk. For genuine Ubuntu VM host metrics, install/run Node Exporter in the Ubuntu VM and configure Prometheus to scrape that VM over a private network.
 
-## 7. Evidence to keep for the manager demo
+## 7. Practise SSH remote administration with Multipass
+
+First list the existing VMs and note the Ubuntu VM name:
+
+    multipass list
+
+Then run the SSH helper from the repository root:
+
+    .\ops\windows-ssh-lab.ps1 -VMName <vm-name>
+
+The helper creates or reuses a passphrase-protected Ed25519 key, installs only its public key for the VM's current Multipass user and verifies SSH login. It does not change sshd policy or firewall settings. See [SSH remote administration lab](SSH-REMOTE-ADMIN-LAB.md) for the follow-up Linux commands and explanation tasks.
+
+After it succeeds, SSH to the guest user and IP displayed by the helper:
+
+    ssh -i "$HOME\.ssh\devops-server-operations-lab" <guest-user>@<vm-ip>
+
+Run hostnamectl, uptime, free -h, df -h, ip route, ss -tulpn, systemctl status ssh and journalctl -u ssh to demonstrate remote system inspection. Exit with exit.
+
+## 8. Evidence to keep for the manager demo
 
 Keep these artefacts in the local evidence folder:
 
