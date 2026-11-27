@@ -25,8 +25,9 @@ PowerShell 5.1 preflight and lab commands are provided:
     .\ops\windows-lab.ps1 -Action MonitoringUp
     .\ops\windows-lab.ps1 -Action Health
     .\ops\windows-incident-demo.ps1
+    .\ops\windows-ssh-lab.ps1 -VMName <vm-name>
 
-The preflight distinguishes an installed Docker CLI from a reachable Docker Engine. The setup script creates different local secrets without printing them. The lab script provides status, logs, controlled API recovery and a safe stop that preserves named volumes. The incident demo captures a timestamped failure-and-recovery transcript and, when monitoring is running, checks for both firing and resolved alert emails in Mailpit. The API writes validated sample events to PostgreSQL so the backup/restore drill can verify a real row, not just an empty archive.
+The SSH helper configures and verifies key-based access to the existing Multipass Ubuntu VM; see docs/SSH-REMOTE-ADMIN-LAB.md for the practical exercise. The preflight distinguishes an installed Docker CLI from a reachable Docker Engine. The setup script creates different local secrets without printing them. The lab script provides status, logs, controlled API recovery and a safe stop that preserves named volumes. The incident demo captures a timestamped failure-and-recovery transcript and, when monitoring is running, checks for both firing and resolved alert emails in Mailpit. The API writes validated sample events to PostgreSQL so the backup/restore drill can verify a real row, not just an empty archive.
 
 ## Validation
 
