@@ -32,7 +32,7 @@ In Grafana, open **Server Operations Overview**. Explain host CPU/memory/disk an
     docker compose start api
     curl -i http://127.0.0.1:8080/api/health
 
-Explain that the main Nginx health endpoint and second website can remain available while the API route fails. Show the pending/firing probe alert in Prometheus, then open Mailpit and show the captured PublicProbeFailed email. Restart the API, confirm the alert resolves, and show the recovery email in Mailpit.
+Explain that the main Nginx health endpoint and second website can remain available while the API route fails. Show the pending/firing probe alert in Prometheus, then open Mailpit and show the captured PublicProbeFailed email. Restart the API, confirm the alert resolves, and show the recovery email in Mailpit. Prometheus evaluates the rule for one minute before it fires.
 
 ## 5. Demonstrate database recovery discipline (2 min)
 
