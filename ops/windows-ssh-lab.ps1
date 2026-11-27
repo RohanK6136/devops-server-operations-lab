@@ -17,6 +17,7 @@ $Stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss")
 $TranscriptPath = Join-Path $EvidenceDir "ssh-lab-$Stamp.txt"
 $SshTemporaryPath = "/tmp/devops-lab-authorized-key.pub"
 $SshTemporaryTransferred = $false
+$TranscriptStarted = $false
 $ExitCode = 0
 
 function Invoke-Multipass {
@@ -33,6 +34,7 @@ function Invoke-Multipass {
 
 try {
     Start-Transcript -Path $TranscriptPath -Force | Out-Null
+    $TranscriptStarted = $true
 
     Set-Location $RepoRoot
     Write-Host "=== MULTIPASS UBUNTU SSH LAB ===" -ForegroundColor Cyan
