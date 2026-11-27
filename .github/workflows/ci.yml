@@ -30,3 +30,30 @@ jobs:
           docker compose config --quiet
       - name: Build local service images
         run: docker compose build
+
+  validate-windows-scripts:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Parse scripts with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $files = @(
+            "ops/windows-preflight.ps1",
+            "ops/windows-lab.ps1"
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD $file),
+              [ref]$tokens,
+              [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | Format-List * | Out-String | Write-Host
+              exit 1
+            }
+            Write-Host "Parsed successfully: $file"
+          }
