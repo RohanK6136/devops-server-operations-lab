@@ -122,6 +122,7 @@ services:
       - node-exporter
       - cadvisor
       - postgres-exporter
+      - alertmanager
     restart: unless-stopped
     mem_limit: 768m
     cpus: 0.50
@@ -205,6 +206,43 @@ services:
     logging: *default-logging
     networks: [monitoring, app]
 
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    profiles: ["monitoring"]
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "5000"
+    volumes:
+      - mailpit_data:/data
+    expose:
+      - "1025"
+    ports:
+      - "127.0.0.1:${MAILPIT_WEB_PORT:-8025}:8025"
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.10
+    logging: *default-logging
+    networks: [monitoring]
+
+  alertmanager:
+    image: prom/alertmanager:v0.35.0
+    profiles: ["monitoring"]
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    depends_on:
+      - mailpit
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.15
+    logging: *default-logging
+    networks: [monitoring]
+
   uptime-kuma:
     image: louislam/uptime-kuma:2
     profiles: ["monitoring"]
@@ -223,6 +261,8 @@ volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  alertmanager_data:
+  mailpit_data:
 
 networks:
   app:
