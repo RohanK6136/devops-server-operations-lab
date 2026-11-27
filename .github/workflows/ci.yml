@@ -37,7 +37,7 @@ jobs:
             echo "Parsed successfully: $script"
           done
       - name: Run end-to-end routing, outage, recovery and database restore test
-        run: ./ops/smoke-test.sh
+        run: bash ./ops/smoke-test.sh
 
   validate-windows-scripts:
     runs-on: windows-latest
