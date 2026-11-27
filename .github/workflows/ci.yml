@@ -41,6 +41,16 @@ jobs:
             echo "Parsed successfully: $script"
           done
           python -m json.tool monitoring/grafana/dashboards/server-operations.json > /dev/null
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("web/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
+          if not scripts:
+              raise SystemExit("No inline script found in web/index.html")
+          Path("/tmp/devops-lab-web.js").write_text("\\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/devops-lab-web.js
       - name: Run end-to-end routing, outage, recovery and database restore test
         run: bash ./ops/smoke-test.sh
 
