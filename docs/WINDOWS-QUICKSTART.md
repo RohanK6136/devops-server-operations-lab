@@ -55,15 +55,17 @@ Only Nginx publishes the website port. The API, second website and database rema
     .\ops\windows-lab.ps1 -Action MonitoringUp
     .\ops\windows-lab.ps1 -Action Status
 
-The monitoring profile adds Prometheus, Grafana, Uptime Kuma, Node Exporter, cAdvisor, Blackbox Exporter and the PostgreSQL exporter.
+The monitoring profile adds Prometheus, Grafana, Alertmanager, Mailpit, Uptime Kuma, Node Exporter, cAdvisor, Blackbox Exporter and the PostgreSQL exporter. Prometheus alerts are routed through Alertmanager into a local Mailpit inbox so the demo can show a real captured incident email without sending mail externally.
 
 | Monitoring service | Address |
 |---|---|
 | Prometheus | http://127.0.0.1:9090 |
 | Grafana | http://127.0.0.1:3000 |
 | Uptime Kuma | http://127.0.0.1:3001 |
+| Alertmanager | http://127.0.0.1:9093 |
+| Mailpit email inbox | http://127.0.0.1:8025 |
 
-Grafana credentials are the values set in .env. Uptime Kuma asks you to create its administrator on first visit. These interfaces bind to localhost by default.
+Grafana credentials are the values set in .env. Uptime Kuma asks you to create its administrator on first visit. All monitoring interfaces bind to localhost by default. Mailpit is a development-only email sink; it does not deliver mail to real recipients.
 
 ## 5. Demonstrate a controlled application incident
 
@@ -71,7 +73,7 @@ The recommended manager demonstration is a single command:
 
     .\ops\windows-incident-demo.ps1
 
-It verifies the baseline first, stops only the local API container, confirms the main and second websites remain available, checks that the API route returns a 5xx response, restarts the API, verifies recovery, and saves a timestamped transcript under evidence. It attempts to restart the API during cleanup if a check fails.
+It verifies the baseline first, stops only the local API container, confirms the main and second websites remain available, checks that the API route returns a 5xx response, restarts the API, verifies recovery, and saves a timestamped transcript under evidence. It attempts to restart the API during cleanup if a check fails. To demonstrate email alerts, leave the monitoring profile running and open Mailpit at http://127.0.0.1:8025.
 
 For manual control, only do the following against the local lab:
 
