@@ -55,13 +55,20 @@ Write-Host "Credentials were not printed. Keep this file on your machine and nev
 
 $DockerCommand = Get-Command docker -ErrorAction SilentlyContinue
 if ($null -ne $DockerCommand) {
-    Write-Host "Validating Docker Compose configuration without starting containers..."
-    & docker compose --project-directory $RepoRoot config --quiet
-    $ComposeExitCode = $LASTEXITCODE
-    if ($ComposeExitCode -ne 0) {
-        throw "The .env file was created, but Docker Compose configuration validation failed with exit code $ComposeExitCode. Keep the file and inspect the Compose configuration."
+    & docker compose version *> $null
+    $ComposeVersionExitCode = $LASTEXITCODE
+    if ($ComposeVersionExitCode -eq 0) {
+        Write-Host "Validating Docker Compose configuration without starting containers..."
+        & docker compose --project-directory $RepoRoot config --quiet
+        $ComposeExitCode = $LASTEXITCODE
+        if ($ComposeExitCode -ne 0) {
+            throw "The .env file was created, but Docker Compose configuration validation failed with exit code $ComposeExitCode. Keep the file and inspect the Compose configuration."
+        }
+        Write-Host "Docker Compose configuration validation passed. No containers were started." -ForegroundColor Green
     }
-    Write-Host "Docker Compose configuration validation passed. No containers were started." -ForegroundColor Green
+    else {
+        Write-Host "Docker CLI is installed but the Compose v2 plugin is unavailable. Configuration validation was skipped."
+    }
 }
 else {
     Write-Host "Docker CLI is not installed. Configuration validation was skipped; you can validate it after installing Docker Desktop."
