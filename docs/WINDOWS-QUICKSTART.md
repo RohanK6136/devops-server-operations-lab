@@ -4,21 +4,21 @@ This project is a local learning lab. The Windows scripts are designed for Windo
 
 ## 1. Choose one Docker engine for the lab
 
-The simplest Windows setup is Docker Desktop using its Linux-container engine and WSL 2 backend. The commands below use the Docker context already selected by Docker Desktop.
+The simplest Windows setup is Docker Desktop using its Linux-container engine and WSL 2 backend. The commands use the Docker context already selected by Docker Desktop.
 
-Multipass is useful for separate Ubuntu Server administration practice, but it is a separate virtual machine and is not automatically the Docker engine used by the Windows Docker CLI. Do not assume that starting a Multipass VM starts Docker Desktop or makes its containers available to the current Docker context.
+Multipass is useful for separate Ubuntu Server administration practice, but it is a separate virtual machine and is not automatically the Docker engine used by the Windows Docker CLI. Starting a Multipass VM does not start Docker Desktop or make its containers available to the current Docker context.
 
-To inspect the Windows environment:
+Inspect the Windows environment:
 
     .\ops\windows-preflight.ps1
 
-The script records evidence under the evidence folder. It checks the Docker CLI and daemon separately, Docker contexts, Compose, Docker Desktop service/process, WSL 2, optional Multipass status and the lab ports.
+The script records evidence under the evidence folder. It checks the Docker CLI and daemon separately, Docker contexts, Compose, Docker Desktop service/process, WSL 2, optional Multipass status and lab ports.
 
 If Docker Desktop is installed but not running, start it from the Windows Start menu and wait for the Docker Engine status to show Running. You may also use:
 
     .\ops\windows-preflight.ps1 -StartDockerDesktop
 
-This starts the Docker Desktop application only. It does not bypass the normal startup process; wait for the engine and rerun the preflight.
+This starts the Docker Desktop application only. Wait for the engine and rerun the preflight.
 
 A message such as "failed to connect to the docker API ... dockerDesktopLinuxEngine ... The system cannot find the file specified" means the CLI cannot reach the selected Docker Desktop engine. It does not by itself indicate a defect in the Compose application.
 
@@ -31,24 +31,41 @@ From the repository root:
 
 Replace both password placeholders with different, strong local-only passwords. Do not commit .env, share its contents in screenshots, or use company/production credentials in this lab.
 
-## 3. Start and inspect the stack
+## 3. Start the core application services
 
     .\ops\windows-lab.ps1 -Action Up
     .\ops\windows-lab.ps1 -Action Status
     .\ops\windows-lab.ps1 -Action Health
 
-The default local endpoints are:
+The core profile starts the main website, API, second website and PostgreSQL. It keeps the monitoring stack stopped initially to reduce laptop memory use.
+
+The two websites share one Nginx entry point:
 
 | Service | Address |
 |---|---|
-| Web / Nginx | http://127.0.0.1:8080 |
+| Main website / Nginx | http://127.0.0.1:8080 |
+| Second independent website | http://127.0.0.1:8080/second/ |
+| Main website health | http://127.0.0.1:8080/health |
+| API readiness through Nginx | http://127.0.0.1:8080/api/health |
+
+Only Nginx publishes the website port. The API, second website and database remain on private Docker networks.
+
+## 4. Start monitoring when the core stack is healthy
+
+    .\ops\windows-lab.ps1 -Action MonitoringUp
+    .\ops\windows-lab.ps1 -Action Status
+
+The monitoring profile adds Prometheus, Grafana, Uptime Kuma, Node Exporter, cAdvisor, Blackbox Exporter and the PostgreSQL exporter.
+
+| Monitoring service | Address |
+|---|---|
 | Prometheus | http://127.0.0.1:9090 |
 | Grafana | http://127.0.0.1:3000 |
 | Uptime Kuma | http://127.0.0.1:3001 |
 
-Grafana credentials are the values set in .env. Uptime Kuma asks you to create its administrator on first visit. The dashboards and monitoring UIs bind to localhost by default.
+Grafana credentials are the values set in .env. Uptime Kuma asks you to create its administrator on first visit. These interfaces bind to localhost by default.
 
-## 4. Demonstrate a controlled incident
+## 5. Demonstrate a controlled application incident
 
 Only do this against the local lab:
 
@@ -58,7 +75,7 @@ Only do this against the local lab:
     .\ops\windows-lab.ps1 -Action StartApi
     .\ops\windows-lab.ps1 -Action Status
 
-The API stop is intentional. The health command should show the impact while the API is stopped; the start command waits up to 60 seconds for the web and API health endpoints to recover. Save the terminal output or record the screen for the demo.
+The API stop is intentional. The health command should show the API route failing while the main Nginx and second website health endpoints remain available. The start command waits up to 60 seconds for all application health endpoints to recover.
 
 To stop containers without deleting persistent volumes:
 
@@ -66,11 +83,11 @@ To stop containers without deleting persistent volumes:
 
 Do not run docker compose down -v for this learning lab unless you deliberately intend to delete its named database and monitoring volumes.
 
-## 5. Understand what host metrics represent
+## 6. Understand what host metrics represent
 
 When this Compose stack runs through Docker Desktop's Linux engine, Node Exporter and cAdvisor observe the Docker Linux environment and its containers. They do not provide a complete view of Windows host CPU/memory/disk. For genuine Ubuntu VM host metrics, install/run Node Exporter in the Ubuntu VM and configure Prometheus to scrape that VM over a private network.
 
-## 6. Evidence to keep for the manager demo
+## 7. Evidence to keep for the manager demo
 
 Keep these artefacts in the local evidence folder:
 
@@ -78,6 +95,6 @@ Keep these artefacts in the local evidence folder:
 - baseline-*.txt — container status, resource usage, HTTP health checks and logs.
 - incident-*.txt — API stop, failed health probe, recovery and final status.
 - Grafana screenshots showing API, host and container metrics.
-- A short screen recording showing the incident and recovery.
+- A short screen recording showing both websites, the failure and recovery.
 
-A successful GitHub CI run validates code/tests and Compose syntax; it does not prove that Docker Desktop is running on your laptop or that the local environment has been exercised.
+A successful GitHub CI run validates code/tests and Compose syntax; it does not prove Docker Desktop is running on the laptop or that the local environment has been exercised.
