@@ -50,7 +50,7 @@ test('readiness endpoint returns 503 when PostgreSQL is unreachable', async (t) 
   assert.equal(response.status, 503);
   const payload = await response.json();
   assert.equal(payload.status, 'not_ready');
-  assert.equal(payload.dependencies.postgresTcp, false);
+  assert.equal(payload.dependencies.postgresQuery, false);
 });
 
 test('readiness endpoint returns ready when dependency is reachable', async (t) => {
@@ -65,7 +65,7 @@ test('readiness uses the real database store check when a store is injected', as
   const baseUrl = await withServer(t, { store });
   const response = await fetch(baseUrl + '/health/ready');
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).dependencies.postgresTcp, true);
+  assert.equal((await response.json()).dependencies.postgresQuery, true);
 });
 
 test('metrics endpoint exposes bounded route labels and counters', async (t) => {
