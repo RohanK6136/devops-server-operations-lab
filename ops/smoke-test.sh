@@ -134,6 +134,40 @@ echo "PASS: API recovered."
 wait_for_resolved_email
 echo "Open http://127.0.0.1:8025 to inspect the captured firing and resolved notifications."
 
+
+echo "== Creating a persistent database event for the backup/restore proof =="
+curl --silent --show-error --fail \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{"eventType":"backup-drill","message":"GitHub Actions record must survive PostgreSQL backup and restore","metadata":{"source":"github-actions","scenario":"backup-restore"}}' \
+  "$BASE_URL/api/events" -o "$TEMP_BODY"
+python3 - "$TEMP_BODY" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+
+event = payload.get("event", {})
+assert payload.get("event") is not None, "POST did not return a stored event"
+assert event.get("eventType") == "backup-drill", "Unexpected stored event type"
+assert event.get("id"), "Stored event has no database ID"
+print("PASS: PostgreSQL created event ID " + str(event["id"]))
+PY
+
+curl --silent --show-error --fail "$BASE_URL/api/events?limit=5" -o "$TEMP_BODY"
+python3 - "$TEMP_BODY" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+
+events = payload.get("events", [])
+assert any(event.get("eventType") == "backup-drill" for event in events), "Stored event was not returned by GET /api/events"
+print("PASS: GET /api/events returned the persisted backup-drill event.")
+PY
+
 echo "== Verifying PostgreSQL backup and isolated restore =="
 ./ops/backup-postgres.sh
 ./ops/restore-test.sh
