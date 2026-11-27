@@ -39,6 +39,8 @@ The setup script generates two different cryptographically random local password
 
 The core profile starts the main website, API, second website and PostgreSQL. The API creates a PostgreSQL-backed events table on startup and exposes read/write operations at /api/events. It keeps the monitoring stack stopped initially to reduce laptop memory use.
 
+The main website also includes a PostgreSQL event journal. Enter a safe sample message and save it to verify the persistent database from the browser.
+
 The two websites share one Nginx entry point:
 
 | Service | Address |
