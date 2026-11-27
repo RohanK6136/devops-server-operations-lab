@@ -49,6 +49,22 @@ services:
     logging: *default-logging
     networks: [app]
 
+  site-two:
+    build:
+      context: ./web-two
+    expose:
+      - "80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/health"]
+      interval: 15s
+      timeout: 4s
+      retries: 3
+    mem_limit: 48m
+    cpus: 0.05
+    logging: *default-logging
+    networks: [app]
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -71,6 +87,7 @@ services:
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.17.1
+    profiles: ["monitoring"]
     environment:
       DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB}?sslmode=disable
       DATA_SOURCE_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
@@ -87,6 +104,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -112,6 +130,7 @@ services:
 
   grafana:
     image: grafana/grafana:12.2.0
+    profiles: ["monitoring"]
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-opsadmin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
@@ -133,11 +152,12 @@ services:
 
   node-exporter:
     image: prom/node-exporter:v1.9.1
+    profiles: ["monitoring"]
     command:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
       - --path.rootfs=/host/root
-      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$$|/)
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -152,6 +172,7 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.52.1
+    profiles: ["monitoring"]
     privileged: true
     devices:
       - /dev/kmsg
@@ -173,6 +194,7 @@ services:
 
   blackbox-exporter:
     image: prom/blackbox-exporter:v0.27.0
+    profiles: ["monitoring"]
     command: ["--config.file=/etc/blackbox/blackbox.yml"]
     volumes:
       - ./monitoring/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
@@ -185,6 +207,7 @@ services:
 
   uptime-kuma:
     image: louislam/uptime-kuma:2
+    profiles: ["monitoring"]
     volumes:
       - uptime_data:/app/data
     ports:
