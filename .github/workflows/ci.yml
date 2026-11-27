@@ -64,7 +64,7 @@ jobs:
               [ref]$parseErrors
             ) | Out-Null
             if ($parseErrors.Count -gt 0) {
-              $parseErrors | Format-List * | Out-String | Write-Host
+              $parseErrors | ForEach-Object { Write-Host ("Parse error at line {0}, column {1}: {2} — {3}" -f $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.ErrorId, $_.Message) }
               exit 1
             }
             Write-Host "Parsed successfully: $file"
