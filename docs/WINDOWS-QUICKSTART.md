@@ -130,6 +130,7 @@ Keep these artefacts in the local evidence folder:
 - windows-preflight-*.txt — confirms the local toolchain and engine status.
 - baseline-*.txt — container status, resource usage, HTTP health checks and logs.
 - incident-*.txt — API stop, failed health probe, recovery and final status.
+- ssh-lab-*.txt — key-based Windows-to-Ubuntu SSH verification and remote system details.
 - Grafana screenshots showing API, host and container metrics.
 - A short screen recording showing both websites, the failure and recovery.
 
