@@ -43,7 +43,7 @@ CREATED=1
 cat "$BACKUP_FILE" | docker compose exec -T postgres pg_restore \
   --username "$POSTGRES_USER" \
   --dbname "$RESTORE_DB" \
-  --no-owner --no-acl --exit-on-error -
+  --no-owner --no-acl --exit-on-error
 
 TABLE_COUNT="$(docker compose exec -T postgres psql -At --username "$POSTGRES_USER" --dbname "$RESTORE_DB" -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" | tr -d '\r')"
 printf 'Restore verification passed. Temporary database: %s; public tables restored: %s\n' "$RESTORE_DB" "$TABLE_COUNT"
